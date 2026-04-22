@@ -460,7 +460,7 @@ with tab2:
                     "Comp C Bid", "Lowest Comp Bid", "Net Profit"]
         for c in fmt_cols:
             scenario_df[c] = scenario_df[c].apply(
-                lambda v: "Did not bid" if pd.isna(v) else f"${v:,.0f}"
+                lambda v: "—" if pd.isna(v) else f"${v:,.0f}"
             )
 
         st.dataframe(scenario_df, use_container_width=True, hide_index=True)
@@ -682,6 +682,6 @@ with tab2:
         for c in ["Bid Prep Cost", "Project Cost", "Comp A Bid", "Comp B Bid",
                   "Comp C Bid", "Lowest Comp Bid", "Net Profit"]:
             scen_df[c] = scen_df[c].apply(
-                lambda v: "Did not bid" if pd.isna(v) else f"${v:,.0f}"
+                lambda v: "—" if pd.isna(v) else f"${v:,.0f}"
             )
         st.dataframe(scen_df, use_container_width=True, hide_index=True)
