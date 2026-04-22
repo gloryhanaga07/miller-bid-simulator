@@ -248,10 +248,11 @@ def interpret_cdf(profits):
     p95        = float(np.percentile(profits, 95))
     loss_mass  = profits[profits <= 0]
     loss_spike = float(np.median(loss_mass)) if len(loss_mass) else 0
+    dollar = "$"
     st.markdown(f"""
-- **{p_loss:.1%}** of simulated trials result in zero or negative profit — these are mostly trials where Miller loses the bid and only forfeits the prep cost (~\${loss_spike:,.0f} median loss).
-- **Median outcome:** \${median_p:,.0f} — half of all trials land above this value.
-- **Worst 5%** of outcomes fall below \${p5:,.0f}; **best 5%** exceed \${p95:,.0f} — the wide range reflects uncertainty in both completion costs and competitor bids.
+- **{p_loss:.1%}** of simulated trials result in zero or negative profit — these are mostly trials where Miller loses the bid and only forfeits the prep cost (~{dollar}{loss_spike:,.0f} median loss).
+- **Median outcome:** {dollar}{median_p:,.0f} — half of all trials land above this value.
+- **Worst 5%** of outcomes fall below {dollar}{p5:,.0f}; **best 5%** exceed {dollar}{p95:,.0f} — the wide range reflects uncertainty in both completion costs and competitor bids.
 - The steep vertical jump near zero shows the mass of "lost bid" trials clustered around the prep cost loss.
 """)
 
@@ -262,9 +263,10 @@ def interpret_pie(won, profits):
     n_wu       = int(np.sum(won & (profits <= 0)))
     n_ls       = int(np.sum(~won))
     avg_prep   = float(np.mean(profits[~won]))
+    dollar = "$"
     st.markdown(f"""
 - **{n_wp/n:.1%} Won & Profitable** — Miller submits the lowest bid and completion costs stay under the bid price.
-- **{n_ls/n:.1%} Lost** — a competitor undercuts Miller; the only cost is the bid prep (~\${abs(avg_prep):,.0f} average loss).
+- **{n_ls/n:.1%} Lost** — a competitor undercuts Miller; the only cost is the bid prep (~{dollar}{abs(avg_prep):,.0f} average loss).
 - **{n_wu/n:.1%} Won & Unprofitable** — Miller wins but completion costs exceed the contract value; winning the bid here destroys value.
 {"- ⚠️ **Winner's curse risk is elevated** — over 5% of wins are unprofitable. Consider raising the bid floor." if n_wu/n > 0.05 else "- ✅ **Winner's curse risk is low** — unprofitable wins are rare under current settings."}
 """)
@@ -538,11 +540,13 @@ with tab2:
         _break_even_rows = sweep_df[sweep_df["e_profit"] > 0]
         _break_even_low  = float(_break_even_rows["bid"].min()) if len(_break_even_rows) else None
         _break_even_high = float(_break_even_rows["bid"].max()) if len(_break_even_rows) else None
+        dollar = "$"
+        be_line = f"- **Profitable bid range:** {dollar}{_break_even_low:,.0f} \u2013 {dollar}{_break_even_high:,.0f} \u2014 outside this window, E[Profit] turns negative." if _break_even_low else ""
         st.markdown(f"""
-- **Optimal bid:** \${optimal_bid:,.0f} maximizes expected profit at \${optimal_profit:,.0f}.
-- Bidding below \${optimal_bid:,.0f} increases win chances but erodes margin — competitors are likely to cluster near the low end of their range.
-- Bidding above \${optimal_bid:,.0f} protects margin but loses too many bids; expected profit falls as win probability drops faster than margin grows.
-{f"- **Profitable bid range:** ${_break_even_low:,.0f} – ${_break_even_high:,.0f} — outside this window, E[Profit] turns negative." if _break_even_low else ""}
+- **Optimal bid:** {dollar}{optimal_bid:,.0f} maximizes expected profit at {dollar}{optimal_profit:,.0f}.
+- Bidding below {dollar}{optimal_bid:,.0f} increases win chances but erodes margin — competitors are likely to cluster near the low end of their range.
+- Bidding above {dollar}{optimal_bid:,.0f} protects margin but loses too many bids; expected profit falls as win probability drops faster than margin grows.
+{be_line}
 - The shaded band (5th–95th percentile) shows that even at the optimal bid, outcomes vary widely due to completion cost and competitor bid uncertainty.
 """)
 
