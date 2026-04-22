@@ -239,6 +239,37 @@ def hist_with_pdf(data, dist, params, color, title, x_label):
     return fig
 
 
+# ── Interpretation helpers ───────────────────────────────────────────────────
+
+def interpret_cdf(profits):
+    p_loss     = float(np.mean(profits <= 0))
+    median_p   = float(np.median(profits))
+    p5         = float(np.percentile(profits, 5))
+    p95        = float(np.percentile(profits, 95))
+    loss_mass  = profits[profits <= 0]
+    loss_spike = float(np.median(loss_mass)) if len(loss_mass) else 0
+    st.markdown(f"""
+- **{p_loss:.1%}** of simulated trials result in zero or negative profit — these are mostly trials where Miller loses the bid and only forfeits the prep cost (~${loss_spike:,.0f} median loss).
+- **Median outcome: ${median_p:,.0f}** — half of all trials land above this value.
+- **Worst 5% of outcomes** fall below **${p5:,.0f}**; **best 5%** exceed **${p95:,.0f}** — the wide range reflects uncertainty in both completion costs and competitor bids.
+- The steep vertical jump near zero shows the mass of "lost bid" trials clustered around the prep cost loss.
+""")
+
+
+def interpret_pie(won, profits):
+    n          = len(profits)
+    n_wp       = int(np.sum(won & (profits > 0)))
+    n_wu       = int(np.sum(won & (profits <= 0)))
+    n_ls       = int(np.sum(~won))
+    avg_prep   = float(np.mean(profits[~won]))
+    st.markdown(f"""
+- **{n_wp/n:.1%} Won & Profitable** — Miller submits the lowest bid and completion costs stay under the bid price.
+- **{n_ls/n:.1%} Lost** — a competitor undercuts Miller; the only cost is the bid prep (~${abs(avg_prep):,.0f} average loss).
+- **{n_wu/n:.1%} Won & Unprofitable** — Miller wins but completion costs exceed the contract value; winning the bid here destroys value.
+{"- ⚠️ **Winner's curse risk is elevated** — over 5% of wins are unprofitable. Consider raising the bid floor." if n_wu/n > 0.05 else "- ✅ **Winner's curse risk is low** — unprofitable wins are rare under current settings."}
+""")
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 1 — Data Overview
 # ════════════════════════════════════════════════════════════════════════════
@@ -397,6 +428,7 @@ with tab2:
             fig_cdf.update_layout(xaxis_title="Net Profit ($)", yaxis_title="Cumulative Probability",
                                   height=380, legend=dict(orientation="h", y=1.02))
             st.plotly_chart(fig_cdf, use_container_width=True)
+            interpret_cdf(profits)
 
         with col_d:
             st.subheader("Outcome Breakdown")
@@ -412,6 +444,7 @@ with tab2:
             ))
             fig_pie.update_layout(height=380, legend=dict(orientation="h", y=-0.1))
             st.plotly_chart(fig_pie, use_container_width=True)
+            interpret_pie(won, profits)
 
         st.markdown("---")
 
@@ -502,6 +535,17 @@ with tab2:
                            height=800, legend=dict(orientation="h", y=1.05))
         st.plotly_chart(fig7, use_container_width=True)
 
+        _break_even_rows = sweep_df[sweep_df["e_profit"] > 0]
+        _break_even_low  = float(_break_even_rows["bid"].min()) if len(_break_even_rows) else None
+        _break_even_high = float(_break_even_rows["bid"].max()) if len(_break_even_rows) else None
+        st.markdown(f"""
+- **Optimal bid: ${optimal_bid:,.0f}** maximizes expected profit at **${optimal_profit:,.0f}**.
+- Bidding below ${optimal_bid:,.0f} increases win chances but erodes margin — competitors are likely to cluster near the low end of their range.
+- Bidding above ${optimal_bid:,.0f} protects margin but loses too many bids; expected profit falls as win probability drops faster than margin grows.
+{f"- **Profitable bid range: ${_break_even_low:,.0f} – ${_break_even_high:,.0f}** — outside this window, E[Profit] turns negative." if _break_even_low else ""}
+- The shaded band (5th–95th percentile) shows that even at the optimal bid, outcomes vary widely due to completion cost and competitor bid uncertainty.
+""")
+
         col_p, col_q = st.columns(2)
 
         with col_p:
@@ -515,6 +559,12 @@ with tab2:
                                xaxis_title="Bid Price ($)", yaxis_title="Probability",
                                height=350, legend=dict(orientation="h", y=1.05))
             st.plotly_chart(fig8, use_container_width=True)
+            _gap = float(optimal_row["p_win"] - optimal_row["p_positive"])
+            st.markdown(f"""
+- At the optimal bid, Miller wins **{optimal_row['p_win']:.1%}** of bids but only profits **{optimal_row['p_positive']:.1%}** of the time — a **{_gap:.1%} gap** driven by high completion cost outcomes.
+- P(Profit > 0) drops faster than P(Win) at lower bids, signalling winner's curse risk when underbidding.
+- Both curves converge toward zero as the bid price rises above competitors' expected range.
+""")
 
         with col_q:
             fig9 = go.Figure()
@@ -629,6 +679,7 @@ with tab2:
                                    yaxis_title="Cumulative Probability", height=380,
                                    legend=dict(orientation="h", y=1.02))
             st.plotly_chart(fig_cdf, use_container_width=True)
+            interpret_cdf(d_profits)
 
         with dc4:
             st.markdown("**Outcome Breakdown**")
@@ -643,6 +694,7 @@ with tab2:
             ))
             fig_pie.update_layout(height=380, legend=dict(orientation="h", y=-0.1))
             st.plotly_chart(fig_pie, use_container_width=True)
+            interpret_pie(d_won, d_profits)
 
         # Cost breakdown
         st.markdown("---")
