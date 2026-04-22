@@ -536,3 +536,152 @@ with tab2:
         for col in ["P(Win)", "P(Profit>0)"]:
             display_df[col] = display_df[col].map("{:.1%}".format)
         st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+        # ── Detailed drill-down at a selected bid price ───────────────────────
+        st.markdown("---")
+        st.subheader("Detailed Analysis at Selected Bid Price")
+
+        available_bids = sweep_df["bid"].values
+        default_idx    = int(np.argmax(sweep_df["e_profit"].values))
+        selected_bid   = st.selectbox(
+            "Select bid price",
+            options=available_bids,
+            index=default_idx,
+            format_func=lambda x: f"${x:,.0f}",
+            key="sweep_detail_bid",
+        )
+
+        d = run_simulation(
+            selected_bid, n_sim, seed,
+            prep_dist, prep_params, comp_dist, comp_params,
+            comp_bid_dist, comp_bid_params, competitor_prob,
+        )
+        d_profits      = d["profits"]
+        d_won          = d["won"]
+        d_won_profits  = d_profits[d_won]
+        d_lost_profits = d_profits[~d_won]
+
+        dm1, dm2, dm3, dm4, dm5 = st.columns(5)
+        dm1.metric("E[Profit]",       f"${np.mean(d_profits):,.0f}")
+        dm2.metric("P(Win)",          f"{np.mean(d_won):.1%}")
+        dm3.metric("P(Profit > 0)",   f"{np.mean(d_profits > 0):.1%}")
+        dm4.metric("5th Percentile",  f"${np.percentile(d_profits, 5):,.0f}")
+        dm5.metric("95th Percentile", f"${np.percentile(d_profits, 95):,.0f}")
+
+        st.markdown("")
+
+        # Histogram + conditional stats
+        dc1, dc2 = st.columns(2)
+        with dc1:
+            st.markdown("**Profit Distribution**")
+            d_hist_bins = st.slider("Number of bins", min_value=10, max_value=200,
+                                    value=60, step=5, key="sweep_hist_bins")
+            fig_dh = go.Figure()
+            fig_dh.add_trace(go.Histogram(x=d_profits[d_profits >= 0], nbinsx=d_hist_bins,
+                                           marker_color="#16A34A", name="Profit ≥ 0", opacity=0.8))
+            fig_dh.add_trace(go.Histogram(x=d_profits[d_profits < 0],
+                                           nbinsx=max(d_hist_bins // 4, 5),
+                                           marker_color="#DC2626", name="Profit < 0", opacity=0.8))
+            fig_dh.add_vline(x=0, line_dash="dash", line_color="black", line_width=1)
+            fig_dh.add_vline(x=np.mean(d_profits), line_dash="dot", line_color="#2563EB",
+                             annotation_text=f"Mean: ${np.mean(d_profits):,.0f}",
+                             annotation_position="top right")
+            fig_dh.update_layout(barmode="overlay", xaxis_title="Net Profit ($)",
+                                  yaxis_title="Count", height=380,
+                                  legend=dict(orientation="h", y=1.02))
+            st.plotly_chart(fig_dh, use_container_width=True)
+
+        with dc2:
+            st.markdown("**Conditional Stats**")
+            st.markdown("**When Miller wins:**")
+            wc1, wc2, wc3 = st.columns(3)
+            wc1.metric("E[Profit | Win]",     f"${np.mean(d_won_profits):,.0f}"   if len(d_won_profits) else "N/A")
+            wc2.metric("P(Profit>0 | Win)",   f"{np.mean(d_won_profits > 0):.1%}" if len(d_won_profits) else "N/A")
+            wc3.metric("Trials won",          f"{len(d_won_profits):,}")
+            st.markdown("**When Miller loses:**")
+            lc1, lc2 = st.columns(2)
+            lc1.metric("E[Loss | Lose]", f"${np.mean(d_lost_profits):,.0f}" if len(d_lost_profits) else "N/A")
+            lc2.metric("Trials lost",    f"{len(d_lost_profits):,}")
+
+            st.markdown("---")
+            st.markdown("**Number of Competitors**")
+            nc = pd.Series(d["n_competitors"]).value_counts().sort_index()
+            fig_nc = px.bar(x=nc.index, y=nc.values / n_sim,
+                            labels={"x": "Competitors", "y": "Probability"},
+                            color_discrete_sequence=["#7C3AED"], text_auto=".1%")
+            fig_nc.update_layout(height=230, showlegend=False)
+            st.plotly_chart(fig_nc, use_container_width=True)
+
+        # CDF + Pie chart
+        dc3, dc4 = st.columns(2)
+        with dc3:
+            st.markdown("**Cumulative Distribution (CDF)**")
+            sp = np.sort(d_profits)
+            cdf = np.arange(1, len(sp) + 1) / len(sp)
+            fig_cdf = go.Figure()
+            fig_cdf.add_trace(go.Scatter(x=sp, y=cdf, mode="lines",
+                                          line=dict(color="#2563EB", width=2), name="CDF"))
+            fig_cdf.add_vline(x=0, line_dash="dash", line_color="#DC2626", line_width=1,
+                              annotation_text="Break-even", annotation_position="top right")
+            fig_cdf.add_hline(y=1 - float(np.mean(d_profits > 0)),
+                              line_dash="dot", line_color="#6B7280", line_width=1)
+            fig_cdf.update_layout(xaxis_title="Net Profit ($)",
+                                   yaxis_title="Cumulative Probability", height=380,
+                                   legend=dict(orientation="h", y=1.02))
+            st.plotly_chart(fig_cdf, use_container_width=True)
+
+        with dc4:
+            st.markdown("**Outcome Breakdown**")
+            n_wp = int(np.sum(d_won & (d_profits > 0)))
+            n_wu = int(np.sum(d_won & (d_profits <= 0)))
+            n_ls = int(np.sum(~d_won))
+            fig_pie = go.Figure(go.Pie(
+                labels=["Won & Profitable", "Won & Unprofitable", "Lost"],
+                values=[n_wp, n_wu, n_ls],
+                marker=dict(colors=["#16A34A", "#F59E0B", "#DC2626"]),
+                textinfo="label+percent", hole=0.35,
+            ))
+            fig_pie.update_layout(height=380, legend=dict(orientation="h", y=-0.1))
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        # Cost breakdown
+        st.markdown("---")
+        st.markdown("**Cost Breakdown (winning trials only)**")
+        if len(d_won_profits) > 0:
+            df_dwin = pd.DataFrame({
+                "Completion Cost": d["comp_costs"][d_won],
+                "Bid Prep Cost":   d["prep_costs"][d_won],
+                "Net Profit":      d_won_profits,
+            })
+            fig_db = go.Figure()
+            for col, color in zip(["Completion Cost", "Bid Prep Cost", "Net Profit"],
+                                   ["#F59E0B", "#3B82F6", "#10B981"]):
+                fig_db.add_trace(go.Box(y=df_dwin[col], name=col, marker_color=color, boxmean=True))
+            fig_db.update_layout(yaxis_title="Amount ($)", height=350)
+            st.plotly_chart(fig_db, use_container_width=True)
+
+        # Sample scenarios
+        st.markdown("---")
+        st.markdown("**Sample Scenarios**")
+        d_n = st.slider("Number of scenarios to show", min_value=5, max_value=500,
+                         value=20, step=5, key="sweep_n_scenarios")
+        idx = np.arange(min(d_n, n_sim))
+        d_b_bids = np.where(d["b_enters"][idx], d["bids_b_raw"][idx], np.nan)
+        d_c_bids = np.where(d["c_enters"][idx], d["bids_c_raw"][idx], np.nan)
+        scen_df = pd.DataFrame({
+            "Scenario #":      idx + 1,
+            "Bid Prep Cost":   d["prep_costs"][idx],
+            "Project Cost":    d["comp_costs"][idx],
+            "Comp A Bid":      d["bids_a"][idx],
+            "Comp B Bid":      d_b_bids,
+            "Comp C Bid":      d_c_bids,
+            "Lowest Comp Bid": d["min_competitor"][idx],
+            "Miller Wins?":    np.where(d["won"][idx], "Yes", "No"),
+            "Net Profit":      d["profits"][idx],
+        })
+        for c in ["Bid Prep Cost", "Project Cost", "Comp A Bid", "Comp B Bid",
+                  "Comp C Bid", "Lowest Comp Bid", "Net Profit"]:
+            scen_df[c] = scen_df[c].apply(
+                lambda v: "Did not bid" if pd.isna(v) else f"${v:,.0f}"
+            )
+        st.dataframe(scen_df, use_container_width=True, hide_index=True)
