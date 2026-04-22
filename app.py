@@ -26,8 +26,7 @@ bid_prep_data, completion_data = load_data()
 DIST_OPTIONS = ["Empirical", "Normal", "Lognormal", "Uniform", "Triangular"]
 COMPETITOR_DIST_OPTIONS = ["Triangular", "Normal", "Uniform"]
 
-def auto_fit(data: np.ndarray, dist: str) -> dict:
-    """Return default parameters fitted from data for a given distribution."""
+def auto_fit(data, dist):
     if dist == "Normal":
         return {"mean": float(np.mean(data)), "std": float(np.std(data))}
     if dist == "Lognormal":
@@ -36,16 +35,11 @@ def auto_fit(data: np.ndarray, dist: str) -> dict:
     if dist == "Uniform":
         return {"low": float(np.min(data)), "high": float(np.max(data))}
     if dist == "Triangular":
-        return {
-            "tri_min": float(np.min(data)),
-            "tri_mode": float(np.median(data)),
-            "tri_max": float(np.max(data)),
-        }
-    return {}  # Empirical needs no params
+        return {"tri_min": float(np.min(data)), "tri_mode": float(np.median(data)), "tri_max": float(np.max(data))}
+    return {}
 
 
-def draw_samples(rng, dist: str, params: dict, data: np.ndarray, n: int) -> np.ndarray:
-    """Draw n samples from the chosen distribution."""
+def draw_samples(rng, dist, params, data, n):
     if dist == "Empirical":
         return rng.choice(data, size=n, replace=True)
     if dist == "Normal":
@@ -59,11 +53,9 @@ def draw_samples(rng, dist: str, params: dict, data: np.ndarray, n: int) -> np.n
     raise ValueError(f"Unknown distribution: {dist}")
 
 
-def dist_pdf(x: np.ndarray, dist: str, params: dict, data: np.ndarray) -> np.ndarray:
-    """Evaluate the PDF of the chosen distribution at points x (for plotting)."""
+def dist_pdf(x, dist, params, data):
     if dist == "Empirical":
-        kde = stats.gaussian_kde(data)
-        return kde(x)
+        return stats.gaussian_kde(data)(x)
     if dist == "Normal":
         return stats.norm.pdf(x, params["mean"], params["std"])
     if dist == "Lognormal":
@@ -72,122 +64,94 @@ def dist_pdf(x: np.ndarray, dist: str, params: dict, data: np.ndarray) -> np.nda
         return stats.uniform.pdf(x, params["low"], params["high"] - params["low"])
     if dist == "Triangular":
         c = (params["tri_mode"] - params["tri_min"]) / (params["tri_max"] - params["tri_min"])
-        return stats.triang.pdf(x, c=c, loc=params["tri_min"],
-                                scale=params["tri_max"] - params["tri_min"])
+        return stats.triang.pdf(x, c=c, loc=params["tri_min"], scale=params["tri_max"] - params["tri_min"])
     return np.zeros_like(x)
 
 
-# ── Distribution param UI helper ──────────────────────────────────────────────
+# ── Distribution param UI helper ─────────────────────────────────────────────
 
-def dist_param_ui(label: str, dist: str, defaults: dict, key_prefix: str) -> dict:
-    """Render editable param inputs and return current param values."""
+def dist_param_ui(label, dist, defaults, key_prefix):
     params = {}
     if dist == "Normal":
-        params["mean"] = st.sidebar.number_input(
-            f"{label} mean ($)", value=defaults["mean"], step=100.0, key=f"{key_prefix}_mean"
-        )
-        params["std"] = st.sidebar.number_input(
-            f"{label} std dev ($)", value=defaults["std"], step=100.0,
-            min_value=1.0, key=f"{key_prefix}_std"
-        )
+        params["mean"] = st.sidebar.number_input(f"{label} mean ($)", value=defaults["mean"], step=100.0, key=f"{key_prefix}_mean")
+        params["std"]  = st.sidebar.number_input(f"{label} std dev ($)", value=defaults["std"], step=100.0, min_value=1.0, key=f"{key_prefix}_std")
     elif dist == "Lognormal":
-        params["log_mean"] = st.sidebar.number_input(
-            f"{label} log-mean", value=defaults["log_mean"], step=0.01,
-            key=f"{key_prefix}_lm"
-        )
-        params["log_std"] = st.sidebar.number_input(
-            f"{label} log-std", value=defaults["log_std"], step=0.01,
-            min_value=0.001, key=f"{key_prefix}_ls"
-        )
+        params["log_mean"] = st.sidebar.number_input(f"{label} log-mean", value=defaults["log_mean"], step=0.01, key=f"{key_prefix}_lm")
+        params["log_std"]  = st.sidebar.number_input(f"{label} log-std",  value=defaults["log_std"],  step=0.01, min_value=0.001, key=f"{key_prefix}_ls")
     elif dist == "Uniform":
-        params["low"] = st.sidebar.number_input(
-            f"{label} min ($)", value=defaults["low"], step=100.0, key=f"{key_prefix}_low"
-        )
-        params["high"] = st.sidebar.number_input(
-            f"{label} max ($)", value=defaults["high"], step=100.0, key=f"{key_prefix}_high"
-        )
+        params["low"]  = st.sidebar.number_input(f"{label} min ($)", value=defaults["low"],  step=100.0, key=f"{key_prefix}_low")
+        params["high"] = st.sidebar.number_input(f"{label} max ($)", value=defaults["high"], step=100.0, key=f"{key_prefix}_high")
     elif dist == "Triangular":
-        params["tri_min"] = st.sidebar.number_input(
-            f"{label} min ($)", value=defaults["tri_min"], step=100.0, key=f"{key_prefix}_tmin"
-        )
-        params["tri_mode"] = st.sidebar.number_input(
-            f"{label} mode ($)", value=defaults["tri_mode"], step=100.0, key=f"{key_prefix}_tmode"
-        )
-        params["tri_max"] = st.sidebar.number_input(
-            f"{label} max ($)", value=defaults["tri_max"], step=100.0, key=f"{key_prefix}_tmax"
-        )
-    # Empirical has no editable params
+        params["tri_min"]  = st.sidebar.number_input(f"{label} min ($)",  value=defaults["tri_min"],  step=100.0, key=f"{key_prefix}_tmin")
+        params["tri_mode"] = st.sidebar.number_input(f"{label} mode ($)", value=defaults["tri_mode"], step=100.0, key=f"{key_prefix}_tmode")
+        params["tri_max"]  = st.sidebar.number_input(f"{label} max ($)",  value=defaults["tri_max"],  step=100.0, key=f"{key_prefix}_tmax")
     return params
 
 
 # ── Simulation core ──────────────────────────────────────────────────────────
 
-def run_simulation(
-    miller_bid: float,
-    n: int,
-    seed: int,
-    prep_dist: str, prep_params: dict,
-    comp_dist: str, comp_params: dict,
-    comp_bid_dist: str, comp_bid_params: dict,
-) -> dict:
+def run_simulation(miller_bid, n, seed, prep_dist, prep_params,
+                   comp_dist, comp_params, comp_bid_dist, comp_bid_params,
+                   competitor_prob):
     rng = np.random.default_rng(seed)
 
     prep_costs = draw_samples(rng, prep_dist, prep_params, bid_prep_data, n)
-    comp_costs = np.maximum(
-        draw_samples(rng, comp_dist, comp_params, completion_data, n), 70_000
-    )
+    comp_costs = np.maximum(draw_samples(rng, comp_dist, comp_params, completion_data, n), 70_000)
 
     def rival_bids(size):
         return draw_samples(rng, comp_bid_dist, comp_bid_params, np.array([]), size)
 
-    bids_a = rival_bids(n)
-    b_enters = rng.random(n) < 0.5
-    c_enters = rng.random(n) < 0.5
-    bids_b = np.where(b_enters, rival_bids(n), np.inf)
-    bids_c = np.where(c_enters, rival_bids(n), np.inf)
+    bids_a       = rival_bids(n)
+    b_enters     = rng.random(n) < competitor_prob
+    c_enters     = rng.random(n) < competitor_prob
+    bids_b_raw   = rival_bids(n)          # always drawn; masked below
+    bids_c_raw   = rival_bids(n)
+    bids_b       = np.where(b_enters, bids_b_raw, np.inf)
+    bids_c       = np.where(c_enters, bids_c_raw, np.inf)
 
     min_competitor = np.minimum(np.minimum(bids_a, bids_b), bids_c)
-    won = miller_bid < min_competitor
-
+    won   = miller_bid < min_competitor
     profit = np.where(won, miller_bid - comp_costs - prep_costs, -prep_costs)
 
     return {
-        "profits": profit,
-        "won": won,
-        "prep_costs": prep_costs,
-        "comp_costs": comp_costs,
+        "profits":       profit,
+        "won":           won,
+        "prep_costs":    prep_costs,
+        "comp_costs":    comp_costs,
         "n_competitors": b_enters.astype(int) + c_enters.astype(int) + 1,
+        "bids_a":        bids_a,
+        "bids_b_raw":    bids_b_raw,
+        "bids_c_raw":    bids_c_raw,
+        "b_enters":      b_enters,
+        "c_enters":      c_enters,
+        "min_competitor": min_competitor,
     }
 
 
 @st.cache_data
-def sweep_bids(
-    bid_min, bid_max, bid_step, n, seed,
-    prep_dist, prep_params_frozen,
-    comp_dist, comp_params_frozen,
-    comp_bid_dist, comp_bid_params_frozen,
-):
-    prep_params = dict(prep_params_frozen)
-    comp_params = dict(comp_params_frozen)
+def sweep_bids(bid_min, bid_max, bid_step, n, seed,
+               prep_dist, prep_params_frozen,
+               comp_dist, comp_params_frozen,
+               comp_bid_dist, comp_bid_params_frozen,
+               competitor_prob):
+    prep_params     = dict(prep_params_frozen)
+    comp_params     = dict(comp_params_frozen)
     comp_bid_params = dict(comp_bid_params_frozen)
 
     bids = np.arange(bid_min, bid_max + bid_step, bid_step)
     rows = []
     for b in bids:
-        res = run_simulation(
-            b, n, seed,
-            prep_dist, prep_params,
-            comp_dist, comp_params,
-            comp_bid_dist, comp_bid_params,
-        )
+        res = run_simulation(b, n, seed, prep_dist, prep_params,
+                             comp_dist, comp_params, comp_bid_dist, comp_bid_params,
+                             competitor_prob)
         p = res["profits"]
         rows.append({
-            "bid": b,
-            "e_profit": np.mean(p),
-            "p_win": np.mean(res["won"]),
+            "bid":       b,
+            "e_profit":  np.mean(p),
+            "p_win":     np.mean(res["won"]),
             "p_positive": np.mean(p > 0),
-            "p5": np.percentile(p, 5),
-            "p95": np.percentile(p, 95),
+            "p5":        np.percentile(p, 5),
+            "p95":       np.percentile(p, 95),
         })
     return pd.DataFrame(rows)
 
@@ -203,10 +167,7 @@ seed = st.sidebar.number_input("Random seed", value=42, step=1)
 # -- Analysis mode
 st.sidebar.markdown("---")
 analysis_mode = st.sidebar.selectbox(
-    "Analysis Mode",
-    ["Single Bid Analysis", "Bid Price Sweep"],
-    index=1,
-    key="analysis_mode",
+    "Analysis Mode", ["Single Bid Analysis", "Bid Price Sweep"], index=1, key="analysis_mode"
 )
 
 if analysis_mode == "Single Bid Analysis":
@@ -215,37 +176,42 @@ if analysis_mode == "Single Bid Analysis":
     sweep_min = sweep_max = sweep_step = None
 else:
     st.sidebar.subheader("Bid Price Sweep")
-    sweep_min = st.sidebar.number_input("Min bid ($)", value=100_000, step=5_000)
-    sweep_max = st.sidebar.number_input("Max bid ($)", value=200_000, step=5_000)
-    sweep_step = st.sidebar.number_input("Step ($)", value=500, step=100)
+    sweep_min  = st.sidebar.number_input("Min bid ($)",  value=100_000, step=5_000)
+    sweep_max  = st.sidebar.number_input("Max bid ($)",  value=200_000, step=5_000)
+    sweep_step = st.sidebar.number_input("Step ($)",     value=500,     step=100)
     single_bid = None
 
 # -- Bid prep distribution
 st.sidebar.markdown("---")
 st.sidebar.subheader("Bid Prep Cost Distribution")
-prep_dist = st.sidebar.selectbox("Distribution", DIST_OPTIONS, index=0, key="prep_dist")
+prep_dist     = st.sidebar.selectbox("Distribution", DIST_OPTIONS, index=0, key="prep_dist")
 prep_defaults = auto_fit(bid_prep_data, prep_dist)
-prep_params = dist_param_ui("Bid prep", prep_dist, prep_defaults, "prep")
+prep_params   = dist_param_ui("Bid prep", prep_dist, prep_defaults, "prep")
 
 # -- Completion cost distribution
 st.sidebar.markdown("---")
 st.sidebar.subheader("Completion Cost Distribution")
-comp_dist = st.sidebar.selectbox("Distribution", DIST_OPTIONS, index=0, key="comp_dist")
+comp_dist     = st.sidebar.selectbox("Distribution", DIST_OPTIONS, index=0, key="comp_dist")
 comp_defaults = auto_fit(completion_data, comp_dist)
-comp_params = dist_param_ui("Completion", comp_dist, comp_defaults, "comp")
+comp_params   = dist_param_ui("Completion", comp_dist, comp_defaults, "comp")
 
 # -- Competitor bid distribution
 st.sidebar.markdown("---")
 st.sidebar.subheader("Competitor Bid Distribution")
-comp_bid_dist = st.sidebar.selectbox(
-    "Distribution", COMPETITOR_DIST_OPTIONS, index=0, key="comp_bid_dist"
-)
+comp_bid_dist = st.sidebar.selectbox("Distribution", COMPETITOR_DIST_OPTIONS, index=0, key="comp_bid_dist")
 _comp_bid_defaults = {
     "Triangular": {"tri_min": 90_000.0, "tri_mode": 130_000.0, "tri_max": 180_000.0},
     "Normal":     {"mean": 130_000.0, "std": 25_000.0},
     "Uniform":    {"low": 90_000.0, "high": 180_000.0},
 }[comp_bid_dist]
 comp_bid_params = dist_param_ui("Competitor bid", comp_bid_dist, _comp_bid_defaults, "cbid")
+
+# -- Competitor entry probability
+st.sidebar.markdown("---")
+st.sidebar.subheader("Competitor Entry Probability")
+competitor_prob = st.sidebar.slider(
+    "Probability B & C each enter (%)", min_value=0, max_value=100, value=50, step=5
+) / 100.0
 
 # -- Run button
 st.sidebar.markdown("---")
@@ -261,23 +227,15 @@ tab2, tab1 = st.tabs(["Analysis Results", "Data Overview"])
 # ── Shared fitted-PDF overlay helper ─────────────────────────────────────────
 
 def hist_with_pdf(data, dist, params, color, title, x_label):
-    x = np.linspace(np.min(data) * 0.9, np.max(data) * 1.1, 400)
+    x     = np.linspace(np.min(data) * 0.9, np.max(data) * 1.1, 400)
     y_pdf = dist_pdf(x, dist, params, data)
-
-    fig = go.Figure()
-    fig.add_trace(go.Histogram(
-        x=data, histnorm="probability density", nbinsx=25,
-        marker_color=color, opacity=0.6, name="Data",
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=y_pdf, mode="lines",
-        line=dict(color="#1E293B", width=2),
-        name=f"{dist} fit",
-    ))
-    fig.update_layout(
-        title=title, xaxis_title=x_label, yaxis_title="Density",
-        height=300, legend=dict(orientation="h", y=1.05),
-    )
+    fig   = go.Figure()
+    fig.add_trace(go.Histogram(x=data, histnorm="probability density", nbinsx=25,
+                               marker_color=color, opacity=0.6, name="Data"))
+    fig.add_trace(go.Scatter(x=x, y=y_pdf, mode="lines",
+                             line=dict(color="#1E293B", width=2), name=f"{dist} fit"))
+    fig.update_layout(title=title, xaxis_title=x_label, yaxis_title="Density",
+                      height=300, legend=dict(orientation="h", y=1.05))
     return fig
 
 
@@ -294,11 +252,9 @@ with tab1:
         m1.metric("n", len(bid_prep_data))
         m2.metric("Mean", f"${np.mean(bid_prep_data):,.0f}")
         m3.metric("Std Dev", f"${np.std(bid_prep_data):,.0f}")
-        st.plotly_chart(
-            hist_with_pdf(bid_prep_data, prep_dist, prep_params,
-                          "#2563EB", f"Bid Prep — {prep_dist}", "Cost ($)"),
-            use_container_width=True,
-        )
+        st.plotly_chart(hist_with_pdf(bid_prep_data, prep_dist, prep_params,
+                                      "#2563EB", f"Bid Prep — {prep_dist}", "Cost ($)"),
+                        use_container_width=True)
 
     with col2:
         st.subheader("Project Completion Costs")
@@ -306,30 +262,20 @@ with tab1:
         m4.metric("n", len(completion_data))
         m5.metric("Mean", f"${np.mean(completion_data):,.0f}")
         m6.metric("Std Dev", f"${np.std(completion_data):,.0f}")
-        st.plotly_chart(
-            hist_with_pdf(completion_data, comp_dist, comp_params,
-                          "#16A34A", f"Completion Cost — {comp_dist}", "Cost ($)"),
-            use_container_width=True,
-        )
+        st.plotly_chart(hist_with_pdf(completion_data, comp_dist, comp_params,
+                                      "#16A34A", f"Completion Cost — {comp_dist}", "Cost ($)"),
+                        use_container_width=True)
 
     st.markdown("---")
     st.subheader(f"Competitor Bid Distribution — {comp_bid_dist}")
-    x_comp = np.linspace(
-        comp_bid_params.get("low", comp_bid_params.get("tri_min",
-            comp_bid_params.get("mean", 130_000) - 3 * comp_bid_params.get("std", 25_000))) * 0.9,
-        comp_bid_params.get("high", comp_bid_params.get("tri_max",
-            comp_bid_params.get("mean", 130_000) + 3 * comp_bid_params.get("std", 25_000))) * 1.1,
-        500,
-    )
-    y_comp = dist_pdf(x_comp, comp_bid_dist, comp_bid_params, np.array([]))
+    _lo = comp_bid_params.get("low",     comp_bid_params.get("tri_min",  comp_bid_params.get("mean", 130_000) - 3 * comp_bid_params.get("std", 25_000))) * 0.9
+    _hi = comp_bid_params.get("high",    comp_bid_params.get("tri_max",  comp_bid_params.get("mean", 130_000) + 3 * comp_bid_params.get("std", 25_000))) * 1.1
+    x_comp  = np.linspace(_lo, _hi, 500)
+    y_comp  = dist_pdf(x_comp, comp_bid_dist, comp_bid_params, np.array([]))
     fig_comp = go.Figure()
-    fig_comp.add_trace(go.Scatter(
-        x=x_comp, y=y_comp, fill="tozeroy",
-        line=dict(color="#DC2626", width=2), name="Competitor bid PDF",
-    ))
-    fig_comp.update_layout(
-        xaxis_title="Bid Amount ($)", yaxis_title="Density", height=280,
-    )
+    fig_comp.add_trace(go.Scatter(x=x_comp, y=y_comp, fill="tozeroy",
+                                  line=dict(color="#DC2626", width=2), name="Competitor bid PDF"))
+    fig_comp.update_layout(xaxis_title="Bid Amount ($)", yaxis_title="Density", height=280)
     st.plotly_chart(fig_comp, use_container_width=True)
 
 
@@ -340,12 +286,11 @@ if run_clicked:
         with st.spinner(f"Running {n_sim:,} simulations for bid ${single_bid:,}…"):
             st.session_state.sim_res = run_simulation(
                 single_bid, n_sim, seed,
-                prep_dist, prep_params,
-                comp_dist, comp_params,
-                comp_bid_dist, comp_bid_params,
+                prep_dist, prep_params, comp_dist, comp_params,
+                comp_bid_dist, comp_bid_params, competitor_prob,
             )
         st.session_state.sim_single_bid = single_bid
-        st.session_state.sim_sweep_df = None
+        st.session_state.sim_sweep_df   = None
     else:
         with st.spinner(f"Sweeping bid prices from ${sweep_min:,} to ${sweep_max:,}…"):
             st.session_state.sim_sweep_df = sweep_bids(
@@ -353,13 +298,14 @@ if run_clicked:
                 prep_dist, tuple(sorted(prep_params.items())),
                 comp_dist, tuple(sorted(comp_params.items())),
                 comp_bid_dist, tuple(sorted(comp_bid_params.items())),
+                competitor_prob,
             )
-        st.session_state.sim_res = None
+        st.session_state.sim_res        = None
         st.session_state.sim_single_bid = None
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# TAB 2 — Single Bid Analysis
+# TAB 2 — Analysis Results
 # ════════════════════════════════════════════════════════════════════════════
 
 with tab2:
@@ -373,89 +319,151 @@ with tab2:
             st.info("Click **▶ Run Simulation** to see results.")
             st.stop()
 
-        res = st.session_state.sim_res
-        profits = res["profits"]
-        won = res["won"]
+        res        = st.session_state.sim_res
+        profits    = res["profits"]
+        won        = res["won"]
         single_bid = st.session_state.sim_single_bid
 
+        # ── Summary metrics
         st.subheader(f"Results for Miller's Bid = ${single_bid:,}")
         m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("E[Profit]", f"${np.mean(profits):,.0f}")
-        m2.metric("P(Win)", f"{np.mean(won):.1%}")
-        m3.metric("P(Profit > 0)", f"{np.mean(profits > 0):.1%}")
-        m4.metric("5th Percentile", f"${np.percentile(profits, 5):,.0f}")
+        m1.metric("E[Profit]",       f"${np.mean(profits):,.0f}")
+        m2.metric("P(Win)",          f"{np.mean(won):.1%}")
+        m3.metric("P(Profit > 0)",   f"{np.mean(profits > 0):.1%}")
+        m4.metric("5th Percentile",  f"${np.percentile(profits, 5):,.0f}")
         m5.metric("95th Percentile", f"${np.percentile(profits, 95):,.0f}")
 
         st.markdown("---")
+
+        # ── Histogram + Conditional stats
         col_a, col_b = st.columns(2)
 
         with col_a:
             st.subheader("Profit Distribution")
+            hist_bins = st.slider("Number of bins", min_value=10, max_value=200, value=60, step=5, key="hist_bins")
+            won_profits  = profits[won]
+            lost_profits = profits[~won]
             fig4 = go.Figure()
-            fig4.add_trace(go.Histogram(
-                x=profits[profits >= 0], nbinsx=50,
-                marker_color="#16A34A", name="Profit ≥ 0", opacity=0.8,
-            ))
-            fig4.add_trace(go.Histogram(
-                x=profits[profits < 0], nbinsx=20,
-                marker_color="#DC2626", name="Profit < 0", opacity=0.8,
-            ))
+            fig4.add_trace(go.Histogram(x=profits[profits >= 0], nbinsx=hist_bins,
+                                        marker_color="#16A34A", name="Profit ≥ 0", opacity=0.8))
+            fig4.add_trace(go.Histogram(x=profits[profits < 0],  nbinsx=max(hist_bins // 4, 5),
+                                        marker_color="#DC2626", name="Profit < 0", opacity=0.8))
             fig4.add_vline(x=0, line_dash="dash", line_color="black", line_width=1)
-            fig4.add_vline(
-                x=np.mean(profits), line_dash="dot", line_color="#2563EB",
-                annotation_text=f"Mean: ${np.mean(profits):,.0f}",
-                annotation_position="top right",
-            )
-            fig4.update_layout(
-                barmode="overlay", xaxis_title="Net Profit ($)", yaxis_title="Count",
-                height=380, legend=dict(orientation="h", y=1.02),
-            )
+            fig4.add_vline(x=np.mean(profits), line_dash="dot", line_color="#2563EB",
+                           annotation_text=f"Mean: ${np.mean(profits):,.0f}",
+                           annotation_position="top right")
+            fig4.update_layout(barmode="overlay", xaxis_title="Net Profit ($)", yaxis_title="Count",
+                               height=380, legend=dict(orientation="h", y=1.02))
             st.plotly_chart(fig4, use_container_width=True)
 
         with col_b:
             st.subheader("Conditional Stats")
-            won_profits = profits[won]
-            lost_profits = profits[~won]
-
             st.markdown("**When Miller wins:**")
             wc1, wc2, wc3 = st.columns(3)
-            wc1.metric("E[Profit | Win]", f"${np.mean(won_profits):,.0f}" if len(won_profits) else "N/A")
-            wc2.metric("P(Profit > 0 | Win)", f"{np.mean(won_profits > 0):.1%}" if len(won_profits) else "N/A")
-            wc3.metric("Trials won", f"{len(won_profits):,}")
+            wc1.metric("E[Profit | Win]",      f"${np.mean(won_profits):,.0f}"       if len(won_profits) else "N/A")
+            wc2.metric("P(Profit > 0 | Win)",  f"{np.mean(won_profits > 0):.1%}"     if len(won_profits) else "N/A")
+            wc3.metric("Trials won",           f"{len(won_profits):,}")
 
             st.markdown("**When Miller loses:**")
             lc1, lc2 = st.columns(2)
             lc1.metric("E[Loss | Lose]", f"${np.mean(lost_profits):,.0f}" if len(lost_profits) else "N/A")
-            lc2.metric("Trials lost", f"{len(lost_profits):,}")
+            lc2.metric("Trials lost",    f"{len(lost_profits):,}")
 
             st.markdown("---")
             st.subheader("Number of Competitors")
             n_comp_counts = pd.Series(res["n_competitors"]).value_counts().sort_index()
-            fig5 = px.bar(
-                x=n_comp_counts.index, y=n_comp_counts.values / n_sim,
-                labels={"x": "Number of Competitors", "y": "Probability"},
-                color_discrete_sequence=["#7C3AED"], text_auto=".1%",
-            )
+            fig5 = px.bar(x=n_comp_counts.index, y=n_comp_counts.values / n_sim,
+                          labels={"x": "Number of Competitors", "y": "Probability"},
+                          color_discrete_sequence=["#7C3AED"], text_auto=".1%")
             fig5.update_layout(height=250, showlegend=False)
             st.plotly_chart(fig5, use_container_width=True)
 
         st.markdown("---")
+
+        # ── CDF + Pie chart
+        col_c, col_d = st.columns(2)
+
+        with col_c:
+            st.subheader("Cumulative Distribution (CDF)")
+            sorted_profits = np.sort(profits)
+            cdf = np.arange(1, len(sorted_profits) + 1) / len(sorted_profits)
+            fig_cdf = go.Figure()
+            fig_cdf.add_trace(go.Scatter(x=sorted_profits, y=cdf, mode="lines",
+                                         line=dict(color="#2563EB", width=2), name="CDF"))
+            fig_cdf.add_vline(x=0, line_dash="dash", line_color="#DC2626", line_width=1,
+                              annotation_text="Break-even", annotation_position="top right")
+            p_above_zero = float(np.mean(profits > 0))
+            fig_cdf.add_hline(y=1 - p_above_zero, line_dash="dot", line_color="#6B7280", line_width=1)
+            fig_cdf.update_layout(xaxis_title="Net Profit ($)", yaxis_title="Cumulative Probability",
+                                  height=380, legend=dict(orientation="h", y=1.02))
+            st.plotly_chart(fig_cdf, use_container_width=True)
+
+        with col_d:
+            st.subheader("Outcome Breakdown")
+            n_win_profit  = int(np.sum(won  & (profits > 0)))
+            n_win_loss    = int(np.sum(won  & (profits <= 0)))
+            n_lost        = int(np.sum(~won))
+            fig_pie = go.Figure(go.Pie(
+                labels=["Won & Profitable", "Won & Unprofitable", "Lost"],
+                values=[n_win_profit, n_win_loss, n_lost],
+                marker=dict(colors=["#16A34A", "#F59E0B", "#DC2626"]),
+                textinfo="label+percent",
+                hole=0.35,
+            ))
+            fig_pie.update_layout(height=380, legend=dict(orientation="h", y=-0.1))
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        st.markdown("---")
+
+        # ── Cost Breakdown box plots
         st.subheader("Cost Breakdown (winning trials only)")
-        won_profits = profits[won]
         if len(won_profits) > 0:
             df_win = pd.DataFrame({
                 "Completion Cost": res["comp_costs"][won],
-                "Bid Prep Cost": res["prep_costs"][won],
-                "Net Profit": won_profits,
+                "Bid Prep Cost":   res["prep_costs"][won],
+                "Net Profit":      won_profits,
             })
             fig6 = go.Figure()
-            for col, color in zip(
-                ["Completion Cost", "Bid Prep Cost", "Net Profit"],
-                ["#F59E0B", "#3B82F6", "#10B981"],
-            ):
+            for col, color in zip(["Completion Cost", "Bid Prep Cost", "Net Profit"],
+                                  ["#F59E0B", "#3B82F6", "#10B981"]):
                 fig6.add_trace(go.Box(y=df_win[col], name=col, marker_color=color, boxmean=True))
             fig6.update_layout(yaxis_title="Amount ($)", height=350)
             st.plotly_chart(fig6, use_container_width=True)
+
+        st.markdown("---")
+
+        # ── Sample scenarios table
+        st.subheader("Sample Scenarios")
+        n_scenarios = st.slider("Number of scenarios to show", min_value=5, max_value=500,
+                                value=20, step=5, key="n_scenarios")
+        idx = np.arange(min(n_scenarios, n_sim))
+
+        def fmt_bid(entered, bid_val):
+            return np.where(entered, bid_val, np.nan)
+
+        b_bids = fmt_bid(res["b_enters"][idx], res["bids_b_raw"][idx])
+        c_bids = fmt_bid(res["c_enters"][idx], res["bids_c_raw"][idx])
+
+        scenario_df = pd.DataFrame({
+            "Scenario #":       idx + 1,
+            "Bid Prep Cost":    res["prep_costs"][idx],
+            "Project Cost":     res["comp_costs"][idx],
+            "Comp A Bid":       res["bids_a"][idx],
+            "Comp B Bid":       b_bids,
+            "Comp C Bid":       c_bids,
+            "Lowest Comp Bid":  res["min_competitor"][idx],
+            "Miller Wins?":     np.where(res["won"][idx], "Yes", "No"),
+            "Net Profit":       res["profits"][idx],
+        })
+
+        fmt_cols = ["Bid Prep Cost", "Project Cost", "Comp A Bid", "Comp B Bid",
+                    "Comp C Bid", "Lowest Comp Bid", "Net Profit"]
+        for c in fmt_cols:
+            scenario_df[c] = scenario_df[c].apply(
+                lambda v: "Did not bid" if pd.isna(v) else f"${v:,.0f}"
+            )
+
+        st.dataframe(scenario_df, use_container_width=True, hide_index=True)
 
     # ── Bid Price Sweep ───────────────────────────────────────────────────────
     else:
@@ -463,77 +471,60 @@ with tab2:
             st.info("Click **▶ Run Simulation** to see results.")
             st.stop()
 
-        sweep_df = st.session_state.sim_sweep_df
+        sweep_df    = st.session_state.sim_sweep_df
         optimal_row = sweep_df.loc[sweep_df["e_profit"].idxmax()]
-        optimal_bid = optimal_row["bid"]
+        optimal_bid    = optimal_row["bid"]
         optimal_profit = optimal_row["e_profit"]
 
         st.subheader("Optimal Bid Analysis")
         oc1, oc2, oc3, oc4 = st.columns(4)
-        oc1.metric("Optimal Bid Price", f"${optimal_bid:,.0f}")
-        oc2.metric("Max E[Profit]", f"${optimal_profit:,.0f}")
-        oc3.metric("Win Prob at Optimal", f"{optimal_row['p_win']:.1%}")
+        oc1.metric("Optimal Bid Price",        f"${optimal_bid:,.0f}")
+        oc2.metric("Max E[Profit]",            f"${optimal_profit:,.0f}")
+        oc3.metric("Win Prob at Optimal",      f"{optimal_row['p_win']:.1%}")
         oc4.metric("P(Profit > 0) at Optimal", f"{optimal_row['p_positive']:.1%}")
 
         st.markdown("---")
 
         fig7 = go.Figure()
-        fig7.add_trace(go.Scatter(
-            x=sweep_df["bid"], y=sweep_df["p95"], fill=None, mode="lines",
-            line_color="rgba(37,99,235,0.2)", showlegend=False,
-        ))
-        fig7.add_trace(go.Scatter(
-            x=sweep_df["bid"], y=sweep_df["p5"], fill="tonexty", mode="lines",
-            line_color="rgba(37,99,235,0.2)", fillcolor="rgba(37,99,235,0.12)",
-            name="5th–95th pct band",
-        ))
-        fig7.add_trace(go.Scatter(
-            x=sweep_df["bid"], y=sweep_df["e_profit"],
-            mode="lines+markers", line=dict(color="#2563EB", width=2.5), name="E[Profit]",
-        ))
+        fig7.add_trace(go.Scatter(x=sweep_df["bid"], y=sweep_df["p95"], fill=None, mode="lines",
+                                  line_color="rgba(37,99,235,0.2)", showlegend=False))
+        fig7.add_trace(go.Scatter(x=sweep_df["bid"], y=sweep_df["p5"], fill="tonexty", mode="lines",
+                                  line_color="rgba(37,99,235,0.2)", fillcolor="rgba(37,99,235,0.12)",
+                                  name="5th–95th pct band"))
+        fig7.add_trace(go.Scatter(x=sweep_df["bid"], y=sweep_df["e_profit"],
+                                  mode="lines+markers", line=dict(color="#2563EB", width=2.5),
+                                  name="E[Profit]"))
         fig7.add_vline(x=optimal_bid, line_dash="dash", line_color="#DC2626",
                        annotation_text=f"Optimal: ${optimal_bid:,}", annotation_position="top left")
         fig7.add_hline(y=0, line_dash="dot", line_color="black", line_width=1)
-        fig7.update_layout(
-            title="Expected Profit vs. Bid Price",
-            xaxis_title="Bid Price ($)", yaxis_title="Net Profit ($)",
-            height=800, legend=dict(orientation="h", y=1.05),
-        )
+        fig7.update_layout(title="Expected Profit vs. Bid Price",
+                           xaxis_title="Bid Price ($)", yaxis_title="Net Profit ($)",
+                           height=800, legend=dict(orientation="h", y=1.05))
         st.plotly_chart(fig7, use_container_width=True)
 
         col_p, col_q = st.columns(2)
 
         with col_p:
             fig8 = go.Figure()
-            fig8.add_trace(go.Scatter(
-                x=sweep_df["bid"], y=sweep_df["p_win"],
-                mode="lines+markers", line=dict(color="#16A34A", width=2.5), name="P(Win)",
-            ))
-            fig8.add_trace(go.Scatter(
-                x=sweep_df["bid"], y=sweep_df["p_positive"],
-                mode="lines+markers", line=dict(color="#7C3AED", width=2.5), name="P(Profit > 0)",
-            ))
+            fig8.add_trace(go.Scatter(x=sweep_df["bid"], y=sweep_df["p_win"],
+                                      mode="lines+markers", line=dict(color="#16A34A", width=2.5), name="P(Win)"))
+            fig8.add_trace(go.Scatter(x=sweep_df["bid"], y=sweep_df["p_positive"],
+                                      mode="lines+markers", line=dict(color="#7C3AED", width=2.5), name="P(Profit > 0)"))
             fig8.add_vline(x=optimal_bid, line_dash="dash", line_color="#DC2626")
-            fig8.update_layout(
-                title="Win Probability vs. Bid Price",
-                xaxis_title="Bid Price ($)", yaxis_title="Probability",
-                height=350, legend=dict(orientation="h", y=1.05),
-            )
+            fig8.update_layout(title="Win Probability vs. Bid Price",
+                               xaxis_title="Bid Price ($)", yaxis_title="Probability",
+                               height=350, legend=dict(orientation="h", y=1.05))
             st.plotly_chart(fig8, use_container_width=True)
 
         with col_q:
             fig9 = go.Figure()
-            fig9.add_trace(go.Scatter(
-                x=sweep_df["bid"], y=sweep_df["e_profit"] * sweep_df["p_win"],
-                mode="lines+markers", line=dict(color="#F59E0B", width=2.5),
-                name="E[Profit] × P(Win)",
-            ))
+            fig9.add_trace(go.Scatter(x=sweep_df["bid"], y=sweep_df["e_profit"] * sweep_df["p_win"],
+                                      mode="lines+markers", line=dict(color="#F59E0B", width=2.5),
+                                      name="E[Profit] × P(Win)"))
             fig9.add_vline(x=optimal_bid, line_dash="dash", line_color="#DC2626")
             fig9.add_hline(y=0, line_dash="dot", line_color="black", line_width=1)
-            fig9.update_layout(
-                title="Risk-Weighted Profit",
-                xaxis_title="Bid Price ($)", yaxis_title="($)", height=350,
-            )
+            fig9.update_layout(title="Risk-Weighted Profit",
+                               xaxis_title="Bid Price ($)", yaxis_title="($)", height=350)
             st.plotly_chart(fig9, use_container_width=True)
 
         st.markdown("---")
