@@ -580,6 +580,15 @@ with tab2:
             fig9.update_layout(title="Risk-Weighted Profit",
                                xaxis_title="Bid Price ($)", yaxis_title="($)", height=350)
             st.plotly_chart(fig9, use_container_width=True)
+            dollar = r"\$"
+            rw_at_optimal = float(optimal_row["e_profit"] * optimal_row["p_win"])
+            st.markdown(f"""
+- **Risk-weighted profit = E[Profit] × P(Win)** — this combines both margin and likelihood into one number, penalizing bids that look profitable on paper but rarely win.
+- At the optimal bid of {dollar}{optimal_bid:,.0f}, the risk-weighted value is **{dollar}{rw_at_optimal:,.0f}**, which is the peak of this curve.
+- Below the optimal bid, P(Win) is high but E[Profit] shrinks — the curve falls because margin is too thin.
+- Above the optimal bid, E[Profit] per win is larger but P(Win) collapses — the curve falls because wins become too rare.
+- Where the curve crosses zero, the bid is so high that expected profit is negative even before accounting for the chance of losing.
+""")
 
         st.markdown("---")
         st.subheader("Full Sweep Table")
