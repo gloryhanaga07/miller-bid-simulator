@@ -452,7 +452,7 @@ with tab2:
             "Comp B Bid":       b_bids,
             "Comp C Bid":       c_bids,
             "Lowest Comp Bid":  res["min_competitor"][idx],
-            "Miller Wins?":     np.where(res["won"][idx], "Yes", "No"),
+            "Miller Wins?":     np.where(res["won"][idx], "✅ Yes", "❌ No"),
             "Net Profit":       res["profits"][idx],
         })
 
@@ -676,7 +676,7 @@ with tab2:
             "Comp B Bid":      d_b_bids,
             "Comp C Bid":      d_c_bids,
             "Lowest Comp Bid": d["min_competitor"][idx],
-            "Miller Wins?":    np.where(d["won"][idx], "Yes", "No"),
+            "Miller Wins?":    np.where(d["won"][idx], "✅ Yes", "❌ No"),
             "Net Profit":      d["profits"][idx],
         })
         for c in ["Bid Prep Cost", "Project Cost", "Comp A Bid", "Comp B Bid",
