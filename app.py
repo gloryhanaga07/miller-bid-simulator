@@ -248,7 +248,7 @@ def interpret_cdf(profits):
     p95        = float(np.percentile(profits, 95))
     loss_mass  = profits[profits <= 0]
     loss_spike = float(np.median(loss_mass)) if len(loss_mass) else 0
-    dollar = "$"
+    dollar = r"\$"
     st.markdown(f"""
 - **{p_loss:.1%}** of simulated trials result in zero or negative profit — these are mostly trials where Miller loses the bid and only forfeits the prep cost (~{dollar}{loss_spike:,.0f} median loss).
 - **Median outcome:** {dollar}{median_p:,.0f} — half of all trials land above this value.
@@ -263,7 +263,7 @@ def interpret_pie(won, profits):
     n_wu       = int(np.sum(won & (profits <= 0)))
     n_ls       = int(np.sum(~won))
     avg_prep   = float(np.mean(profits[~won]))
-    dollar = "$"
+    dollar = r"\$"
     st.markdown(f"""
 - **{n_wp/n:.1%} Won & Profitable** — Miller submits the lowest bid and completion costs stay under the bid price.
 - **{n_ls/n:.1%} Lost** — a competitor undercuts Miller; the only cost is the bid prep (~{dollar}{abs(avg_prep):,.0f} average loss).
@@ -540,7 +540,7 @@ with tab2:
         _break_even_rows = sweep_df[sweep_df["e_profit"] > 0]
         _break_even_low  = float(_break_even_rows["bid"].min()) if len(_break_even_rows) else None
         _break_even_high = float(_break_even_rows["bid"].max()) if len(_break_even_rows) else None
-        dollar = "$"
+        dollar = r"\$"
         be_line = f"- **Profitable bid range:** {dollar}{_break_even_low:,.0f} \u2013 {dollar}{_break_even_high:,.0f} \u2014 outside this window, E[Profit] turns negative." if _break_even_low else ""
         st.markdown(f"""
 - **Optimal bid:** {dollar}{optimal_bid:,.0f} maximizes expected profit at {dollar}{optimal_profit:,.0f}.
